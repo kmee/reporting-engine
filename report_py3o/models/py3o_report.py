@@ -20,6 +20,7 @@ from odoo.exceptions import AccessError
 from odoo.exceptions import UserError
 from odoo.report.report_sxw import rml_parse
 from odoo import api, fields, models, tools, _
+from .use_local_libreoffice import USE_LOCAL_LIBREOFFICE
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,10 @@ try:
     from py3o.template.helpers import Py3oConvertor
     from py3o.template import Template
     from py3o import formats
+
+    if USE_LOCAL_LIBREOFFICE:
+        import sh
+
 except ImportError:
     logger.debug('Cannot import py3o.template')
 try:
@@ -258,30 +263,52 @@ class Py3oReport(models.TransientModel):
                 datadict = data_struct.render(localcontext)
 
         if not is_native or not report_xml.py3o_is_local_fusion:
-            # Call py3o.server to render the template in the desired format
-            files = {
-                'tmpl_file': tmpl_data,
-            }
-            fields = {
-                "targetformat": filetype,
-                "datadict": json.dumps(datadict),
-                "image_mapping": "{}",
-                "escape_false": "on",
-            }
-            if report_xml.py3o_is_local_fusion:
-                fields['skipfusion'] = '1'
-            r = requests.post(
-                report_xml.py3o_server_id.url, data=fields, files=files)
-            if r.status_code != 200:
-                # server says we have an issue... let's tell that to enduser
-                raise UserError(
-                    _('Fusion server error %s') % r.text,
-                )
+            if USE_LOCAL_LIBREOFFICE:
+                res = tmpl_data
 
-            chunk_size = 1024
-            with open(result_path, 'w+') as fd:
-                for chunk in r.iter_content(chunk_size):
-                    fd.write(chunk)
+                arq = tempfile.NamedTemporaryFile(delete=False)
+                arq.seek(0)
+                arq.write(res)
+                arq.flush()
+
+                res_arq_name = arq.name + '.' + filetype
+                result_path = res_arq_name
+
+                sh.libreoffice('--headless', '--invisible', \
+                    '--convert-to', filetype, \
+                    '--outdir', '/tmp', arq.name)
+
+                res = file(res_arq_name, 'r').read()
+
+                #os.remove(res_arq_name)
+                os.remove(arq.name)
+
+            else:
+                # Call py3o.server to render the template in the desired format
+                files = {
+                    'tmpl_file': tmpl_data,
+                }
+                fields = {
+                    "targetformat": filetype,
+                    "datadict": json.dumps(datadict),
+                    "image_mapping": "{}",
+                    "escape_false": "on",
+                }
+                if report_xml.py3o_is_local_fusion:
+                    fields['skipfusion'] = '1'
+                r = requests.post(
+                    report_xml.py3o_server_id.url, data=fields, files=files)
+                if r.status_code != 200:
+                    # server says we have an issue. let's tell that to enduser
+                    raise UserError(
+                        _('Fusion server error %s') % r.text,
+                    )
+
+                chunk_size = 1024
+                with open(result_path, 'w+') as fd:
+                    for chunk in r.iter_content(chunk_size):
+                        fd.write(chunk)
+
         if len(model_instance) == 1:
             self._postprocess_report(
                 result_path, model_instance.id, save_in_attachment)

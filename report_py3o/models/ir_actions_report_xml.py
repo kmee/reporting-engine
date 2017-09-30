@@ -6,6 +6,7 @@ import time
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 from odoo.tools.safe_eval import safe_eval
+from .use_local_libreoffice import USE_LOCAL_LIBREOFFICE
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +40,10 @@ class IrActionsReportXml(models.Model):
         is_native = Formats().get_format(self.py3o_filetype).native
         if ((not is_native or not self.py3o_is_local_fusion) and
                 not self.py3o_server_id):
-            raise ValidationError(_(
-                "Can not use not native format in local fusion. "
-                "Please specify a Fusion Server"))
+            if not USE_LOCAL_LIBREOFFICE:
+                raise ValidationError(_(
+                    "Can not use not native format in local fusion. "
+                    "Please specify a Fusion Server"))
 
     @api.model
     def _get_py3o_filetypes(self):
