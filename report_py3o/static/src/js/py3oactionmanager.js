@@ -32,7 +32,7 @@ ActionManager.include({
         _t =  core._t;
 
         // Py3o reports
-        if ('report_type' in action && action.report_type == 'py3o' ) {
+        if ('report_type' in action && action.report_type == 'py3o' && !(action.printing_printer_id)) {
             var report_url = '/report/py3o/' + action.report_name;;
             // generic report: no query string
             // particular: query string of action.data.form and context
