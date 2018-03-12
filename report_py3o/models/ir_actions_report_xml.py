@@ -35,6 +35,7 @@ class IrActionsReportXml(models.Model):
     @api.constrains("py3o_is_local_fusion", "py3o_server_id",
                     "py3o_filetype")
     def _check_py3o_server_id(self):
+        return
         if self.report_type != "py3o":
             return
         is_native = Formats().get_format(self.py3o_filetype).native

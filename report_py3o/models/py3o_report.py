@@ -24,13 +24,14 @@ from .use_local_libreoffice import USE_LOCAL_LIBREOFFICE
 
 logger = logging.getLogger(__name__)
 
+USE_LOCAL_LIBREOFFICE = True
+import sh
+
 try:
     from py3o.template.helpers import Py3oConvertor
     from py3o.template import Template
     from py3o import formats
 
-    if USE_LOCAL_LIBREOFFICE:
-        import sh
 
 except ImportError:
     logger.debug('Cannot import py3o.template')
